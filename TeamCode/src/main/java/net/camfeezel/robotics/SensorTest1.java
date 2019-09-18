@@ -82,11 +82,16 @@ public class SensorTest1 extends LinearOpMode {
 
     /**
      *
-     * @param x speed in the 90/270 degrees direction.
-     * @param y speed in the 0/180 degrees direction.
+     * @param x speed in the 90/270 degrees direction. -1 to 1
+     * @param y speed in the 0/180 degrees direction. -1 to 1
      * @param rot rotational speed, positive means positive degrees.
      */
     private void setVelocity(float x, float y, float rot) {
+        float frFin = 0f;
+        float flFin = 0f;
+        float brFin = 0f;
+        float blFin = 0f;
+
         
     }
 
