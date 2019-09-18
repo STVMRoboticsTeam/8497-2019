@@ -10,6 +10,7 @@ import com.qualcomm.robotcore.hardware.GyroSensor;
 import com.qualcomm.robotcore.hardware.IntegratingGyroscope;
 import com.qualcomm.robotcore.hardware.OpticalDistanceSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
@@ -92,7 +93,17 @@ public class SensorTest1 extends LinearOpMode {
         float brFin = 0f;
         float blFin = 0f;
 
-        
+        x = Range.clip(x, -1, 1);
+        y = Range.clip(y, -1, 1);
+
+        // fl
+        if(y > 0) {
+            // TODO check what happens on zeros. for FL its defo wrong
+            if(x >= 0) {
+                flFin = x * y;
+                frFin = -((x * 2) - 1) * y;
+            }
+        }
     }
 
 }
