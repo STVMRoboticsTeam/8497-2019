@@ -5,6 +5,7 @@ import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.GyroSensor;
 import com.qualcomm.robotcore.hardware.IntegratingGyroscope;
@@ -28,6 +29,10 @@ public class SensorTest1 extends LinearOpMode {
 
     private ModernRoboticsI2cGyro sensorGyro;
 
+    private DcMotor motorFL0;
+    private DcMotor motorFR1;
+    private DcMotor motorBL2;
+    private DcMotor motorBR3;
 
     private ElapsedTime timer1 = new ElapsedTime();
 
@@ -38,6 +43,11 @@ public class SensorTest1 extends LinearOpMode {
         sensorDistance27 = hardwareMap.get(Rev2mDistanceSensor.class, "dist27");
 
         sensorColorDown = hardwareMap.colorSensor.get("colorDown");
+
+        motorFL0 = hardwareMap.dcMotor.get("0");
+        motorFR1 = hardwareMap.dcMotor.get("1");
+        motorBL2 = hardwareMap.dcMotor.get("2");
+        motorBR3 = hardwareMap.dcMotor.get("3");
 
         // GYRO Init and Calibration
         sensorGyro = hardwareMap.get(ModernRoboticsI2cGyro.class, "gyro");
@@ -64,9 +74,9 @@ public class SensorTest1 extends LinearOpMode {
             telemetry.addData("Integ. Z", "%3d", sensorGyro.getIntegratedZValue());
             telemetry.addData("Angle", "%3d", String.format("%.3f", zAngle));
 
-            double cd00 = sensorDistance00.getDistance(DistanceUnit.CM);
-            double cd18 = sensorDistance18.getDistance(DistanceUnit.CM);
-            double cd27 = sensorDistance27.getDistance(DistanceUnit.CM);
+            float cd00 = (float) sensorDistance00.getDistance(DistanceUnit.CM);
+            float cd18 = (float) sensorDistance18.getDistance(DistanceUnit.CM);
+            float cd27 = (float) sensorDistance27.getDistance(DistanceUnit.CM);
             telemetry.addData("Distance-000", "%d cm", cd00);
             telemetry.addData("Distance-180", "%d cm", cd18);
             telemetry.addData("Distance-270", "%d cm", cd27);
@@ -77,7 +87,27 @@ public class SensorTest1 extends LinearOpMode {
                     .addData("B", sensorColorDown.blue());
             telemetry.update();
 
+            float x;
+            float y;
 
+            if(cd00 > 10.5) {
+                y = Range.clip((cd00 - 8) / 10, 0, 1);
+            } else if(cd00 < 9.5) {
+                y = Range.clip((cd00 - 12) / 10, -1, 0);
+            } else {
+                y = 0;
+            }
+
+            if(cd27 > 10.5) {
+                x = Range.clip((cd27 - 8) / 10, 0, 1);
+            } else if(cd27 < 9.5) {
+                x = Range.clip((cd27 - 12) / 10, -1, 0);
+            } else {
+                x = 0;
+            }
+
+            telemetry.addLine("Velocity").addData("X", x).addData("Y", y);
+            setVelocity(x, y, 0);
         }
     }
 
@@ -95,15 +125,68 @@ public class SensorTest1 extends LinearOpMode {
 
         x = Range.clip(x, -1, 1);
         y = Range.clip(y, -1, 1);
+        rot = Range.clip(rot / 360, -1, 1);
 
-        // fl
-        if(y > 0) {
-            // TODO check what happens on zeros. for FL its defo wrong
-            if(x >= 0) {
-                flFin = x * y;
-                frFin = -((x * 2) - 1) * y;
-            }
+        /*
+         * fl = x + y + rot
+         * fr = x - y - rot
+         * bl = x - y + rot
+         * br = x + y - rot
+         *
+         * final values need scaled // not clipped
+         * scale rotation less than position
+         */
+        float curScale = 1f;
+        float scale = 1f;
+
+        // FL x + y + rot
+        if(x + y + rot > 1f) {
+            curScale = (1 - rot) / (x + y);
+        } else if(x + y + rot < -1f) {
+            curScale = (rot - 1) / (x + y);
         }
+        if(curScale < scale) scale = curScale;
+
+        // FR x - y - rot
+        if(x - y - rot > 1f) {
+            curScale = (1 + rot) / (x - y);
+        } else if(x - y - rot < -1f) {
+            curScale = (-rot - 1) / (x - y);
+        }
+        if(curScale < scale) scale = curScale;
+
+        // BL x - y + rot
+        if(x - y + rot > 1f) {
+            curScale = (1 - rot) / (x - y);
+        } else if(x - y + rot < -1f) {
+            curScale = (rot - 1) / (x - y);
+        }
+        if(curScale < scale) scale = curScale;
+
+        // BR x + y - rot
+        if(x + y - rot > 1f) {
+            curScale = (1 + rot) / (x + y);
+        } else if(x + y - rot < -1f) {
+            curScale = (-rot - 1) / (x + y);
+        }
+        if(curScale < scale) scale = curScale;
+
+        flFin = (x + y) * scale + rot;
+        frFin = (x - y) * scale - rot;
+        blFin = (x - y) * scale + rot;
+        brFin = (x + y) * scale - rot;
+
+        telemetry.addLine("Motors")
+                .addData("FL", flFin)
+                .addData("FR", frFin)
+                .addData("BL", blFin)
+                .addData("BR", brFin);
+        telemetry.update();
+
+        motorFL0.setPower(flFin);
+        motorFR1.setPower(-frFin);
+        motorBL2.setPower(blFin);
+        motorBR3.setPower(-brFin);
     }
 
 }
